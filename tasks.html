@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ada Kam — Task Manager</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="../ada-kam-browser.png">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div id="loginScreen" class="screen">
+    <div class="login-box">
+      <img src="../Ada-Kam.png" alt="Ada Kam" class="login-logo">
+      <h2 id="loginTitle">Task Manager</h2>
+      <input type="email" id="adminEmail" placeholder="Email" value="admin@adakam.com" readonly>
+      <input type="password" id="adminPass" placeholder="Password">
+      <p id="loginMsg" class="login-msg"></p>
+      <button id="loginBtn" onclick="adminLogin()">Sign In</button>
+      <p class="login-hint">Default: admin123</p>
+    </div>
+  </div>
+
+  <div id="mainScreen" class="screen off">
+    <header class="top-bar">
+      <div class="top-left">
+        <img src="../Ada-Kam.png" alt="Ada Kam" class="top-logo">
+        <span>Task Manager</span>
+      </div>
+      <div class="top-right">
+        <button onclick="logout()" class="top-btn">Logout</button>
+      </div>
+    </header>
+
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search by email..." oninput="doSearch()">
+      <button onclick="doSearch()" class="search-btn">Search</button>
+    </div>
+
+    <div id="statsBar" class="stats-bar">
+      <span>Pending: <strong id="statPending">0</strong></span>
+      <span>Approved: <strong id="statApproved">0</strong></span>
+      <span>Rejected: <strong id="statRejected">0</strong></span>
+      <span>Total: <strong id="statTotal">0</strong></span>
+    </div>
+
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('pending', this)">Pending</button>
+      <button class="filter-btn" onclick="setFilter('approved', this)">Approved</button>
+      <button class="filter-btn" onclick="setFilter('rejected', this)">Rejected</button>
+    </div>
+
+    <div id="taskList" class="task-list"></div>
+
+    <div id="pageNav"></div>
+  </div>
+
+  <div id="taskModal" class="modal off" onclick="if(event.target===this)closeModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">Task Details</span>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-img-wrap" id="modalImgWrap">
+        <img id="modalImg" src="" alt="screenshot">
+      </div>
+      <div class="modal-info" id="modalInfo"></div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
