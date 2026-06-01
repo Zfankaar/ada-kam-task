@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ada Kam — Tasks Manager</title>
+  <link rel="icon" type="image/png" href="../../ada-kam-browser.png">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#0f0f12;--bg2:#1a1a20;--bg3:#24242d;--border:#2e2e3a;--text:#e4e4ec;--text2:#9898a8;--accent:#7c5bfa;--green:#2ecc71;--green-bg:rgba(46,204,113,0.12);--red:#e74c3c;--red-bg:rgba(231,76,60,0.12);--yellow:#f39c12;--yellow-bg:rgba(243,156,18,0.12);--radius:10px;--shadow:0 4px 24px rgba(0,0,0,0.4)}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    .off{display:none!important}
+    /* LOGIN */
+    #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+    .login-box{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:40px 32px;max-width:380px;width:100%;text-align:center;box-shadow:var(--shadow)}
+    .login-box img{width:64px;height:64px;object-fit:contain;margin-bottom:16px;border-radius:12px}
+    .login-box h2{font-size:22px;font-weight:700;margin-bottom:24px;color:var(--accent)}
+    .login-box input{width:100%;padding:14px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;margin-bottom:12px;outline:none;transition:border .2s}
+    .login-box input:focus{border-color:var(--accent)}
+    .login-box button{width:100%;padding:14px;background:var(--accent);border:none;border-radius:var(--radius);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px}
+    .login-box button:hover{background:#6a48e6}
+    .login-msg{font-size:13px;color:var(--red);margin-bottom:8px;min-height:20px}
+    .login-hint{font-size:12px;color:var(--text2);margin-top:16px}
+    /* HEADER */
+    .header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+    .header h1{font-size:18px;color:var(--accent)}
+    .header button{padding:6px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+    .header button:hover{background:var(--red);border-color:var(--red);color:#fff}
+    /* STATS */
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:16px 20px}
+    .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+    .stat-card .num{font-size:22px;font-weight:800}
+    .stat-card .lbl{font-size:11px;color:var(--text2);margin-top:2px}
+    .stat-total .num{color:var(--accent)}
+    .stat-pending .num{color:var(--yellow)}
+    .stat-approved .num{color:var(--green)}
+    .stat-rejected .num{color:var(--red)}
+    /* SEARCH + FILTERS */
+    .search-bar{display:flex;gap:8px;padding:0 20px;margin-bottom:12px}
+    .search-bar input{flex:1;min-width:160px;padding:10px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:13px;outline:none}
+    .search-bar input:focus{border-color:var(--accent)}
+    .search-bar button{padding:10px 20px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;font-size:13px;cursor:pointer}
+    .search-bar button:hover{background:#6a48e6}
+    .status-filters{display:flex;gap:6px;padding:0 20px;margin-bottom:12px;flex-wrap:wrap}
+    .status-filters button{padding:6px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--text2);font-size:12px;cursor:pointer;font-weight:600;transition:all .2s}
+    .status-filters button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .status-filters button:hover:not(.active){border-color:var(--accent);color:var(--text)}
+    /* CONTENT */
+    .content{padding:0 20px 20px}
+    .table-wrap{overflow-x:auto;background:var(--bg2);border:1px solid var(--border);border-radius:12px}
+    .data-table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
+    .data-table th{text-align:left;padding:12px 14px;background:var(--bg3);color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)}
+    .data-table td{padding:10px 14px;border-bottom:1px solid var(--border)}
+    .data-table tr:last-child td{border-bottom:none}
+    .data-table tr:hover td{background:rgba(124,91,250,0.04)}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:capitalize}
+    .badge-pending{background:var(--yellow-bg);color:var(--yellow)}
+    .badge-approved{background:var(--green-bg);color:var(--green)}
+    .badge-rejected{background:var(--red-bg);color:var(--red)}
+    .action-btn{padding:6px 14px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s;margin-right:5px}
+    .action-btn:hover{opacity:.85}
+    .btn-approve{background:var(--green);color:#fff}
+    .btn-reject{background:var(--red);color:#fff}
+    .actions-cell{white-space:nowrap}
+    .view-btn{color:var(--accent);cursor:pointer;font-size:12px;font-weight:600;background:none;border:none;padding:4px 0}
+    .view-btn:hover{text-decoration:underline}
+    .empty-state{text-align:center;padding:60px 20px;color:var(--text2);font-size:14px}
+    .pagination{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 0 4px}
+    .page-btn{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 14px;font-size:14px;cursor:pointer}
+    .page-btn:hover:not(:disabled){background:var(--accent);border-color:var(--accent)}
+    .page-btn:disabled{opacity:.4;cursor:default}
+    .page-info{font-size:13px;color:var(--text2);font-weight:600}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+    .modal.off{display:none!important}
+    .modal-content{background:var(--bg2);border:1px solid var(--border);border-radius:14px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.6);position:relative}
+    .modal-close{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text2);font-size:28px;cursor:pointer;z-index:10;line-height:1}
+    .modal-close:hover{color:#fff}
+    .modal-image-wrap{background:#000;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:center;min-height:280px;max-height:70vh;overflow:hidden}
+    .modal-image-wrap img{width:100%;height:auto;max-height:70vh;object-fit:contain}
+    .modal-actions{padding:16px 24px;display:flex;gap:10px;justify-content:flex-end}
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:12px 24px;border-radius:var(--radius);font-size:14px;opacity:0;transition:all .3s;z-index:999;pointer-events:none}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .user-info{display:flex;flex-direction:column}
+    .user-info .email{font-weight:600;font-size:13px}
+    @media(max-width:600px){
+      .stats{grid-template-columns:1fr 1fr;padding:12px 14px;gap:8px}
+      .stat-card{padding:10px}
+      .stat-card .num{font-size:18px}
+      .content{padding:0 14px 14px}
+      .search-bar,.status-filters{padding:0 14px}
+      .data-table{font-size:12px;min-width:500px}
+      .data-table th,.data-table td{padding:8px 10px}
+      .action-btn{padding:5px 10px;font-size:11px}
+      .header{padding:10px 14px}
+      .header h1{font-size:16px}
+      .status-filters button{padding:5px 10px;font-size:11px}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginScreen">
+    <div class="login-box">
+      <img src="../../Ada-Kam.png" alt="Ada Kam">
+      <h2>Tasks Manager</h2>
+      <input type="email" id="adminEmail" placeholder="Email" value="admin@adakam.com" readonly>
+      <input type="password" id="adminPass" placeholder="Password" onkeydown="if(event.key==='Enter')adminLogin()">
+      <p id="loginMsg" class="login-msg"></p>
+      <button onclick="adminLogin()">Sign In</button>
+      <p class="login-hint">Use admin@adakam.com</p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="mainScreen" class="off">
+    <div class="header">
+      <h1>Tasks Manager</h1>
+      <button onclick="adminLogout()">Logout</button>
+    </div>
+
+    <div class="stats" id="statsRow">
+      <div class="stat-card stat-total"><div class="num" id="statTotal">0</div><div class="lbl">Total</div></div>
+      <div class="stat-card stat-pending"><div class="num" id="statPending">0</div><div class="lbl">Pending</div></div>
+      <div class="stat-card stat-approved"><div class="num" id="statApproved">0</div><div class="lbl">Approved</div></div>
+      <div class="stat-card stat-rejected"><div class="num" id="statRejected">0</div><div class="lbl">Rejected</div></div>
+    </div>
+
+    <div class="status-filters" id="statusFilters">
+      <button class="active" data-filter="">All</button>
+      <button data-filter="pending">Pending</button>
+      <button data-filter="approved">Approved</button>
+      <button data-filter="rejected">Rejected</button>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="search by user ID, app user ID, or task ID..." oninput="filterTasks()">
+      <button onclick="filterTasks()">Search</button>
+    </div>
+
+    <div class="content" id="tabContent">
+      <div class="empty-state">loading tasks...</div>
+    </div>
+  </div>
+
+  <!-- TASK MODAL -->
+  <div id="taskModal" class="modal off" onclick="if(event.target===this)closeModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <div class="modal-image-wrap">
+        <img id="modalImage" src="" alt="screenshot">
+      </div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var SUPABASE_URL = 'https://pxsdcnsuqgarknbaczsd.supabase.co';
+    var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4c2RjbnN1cWdhcmtuYmFjenNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MTM0MjEsImV4cCI6MjA5NTE4OTQyMX0.oEDW_8Rgahqcp775C-ZtXNqu9rx26Bc1SYALXj7JXYM';
+    var ADMIN_EMAIL = 'admin@adakam.com';
+    var supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    var _allTasks = [];
+    var _filteredTasks = null;
+    var _statusFilter = '';
+    var _page = 1;
+    var PER_PAGE = 10;
+    var _signedIn = false;
+
+    function getAdminPass() { try { return localStorage.getItem('adaKamTasksPass') || 'admin123'; } catch(e) { return 'admin123'; } }
+    function setAdminPass(p) { try { localStorage.setItem('adaKamTasksPass', p); } catch(e) {} }
+
+    function paginate(arr, p) { var s = (p - 1) * PER_PAGE; return { items: arr.slice(s, s + PER_PAGE), total: arr.length, pages: Math.ceil(arr.length / PER_PAGE) }; }
+
+    async function adminLogin() {
+      var email = document.getElementById('adminEmail').value.trim();
+      var pass = document.getElementById('adminPass').value;
+      var msg = document.getElementById('loginMsg');
+      var btn = document.querySelector('#loginScreen button');
+      if (!pass || pass.length < 4) { msg.textContent = 'enter password'; return; }
+      msg.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'signing in...';
+
+      var { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user && session.user.email === email) { _signedIn = true; showDashboard(); btn.disabled = false; return; }
+
+      var { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (error) {
+        if (pass !== getAdminPass()) { setAdminPass(pass); }
+        var { data: d2, error: e2 } = await supabase.auth.signInWithPassword({ email, password: pass });
+        if (e2) { msg.textContent = e2.message; btn.textContent = 'Sign In'; btn.disabled = false; return; }
+      }
+      _signedIn = true;
+      btn.disabled = false;
+      showDashboard();
+    }
+
+    function adminLogout() {
+      supabase.auth.signOut();
+      _signedIn = false;
+      localStorage.removeItem('adaKamTasksSession');
+      document.getElementById('mainScreen').classList.add('off');
+      document.getElementById('loginScreen').classList.remove('off');
+      document.getElementById('adminPass').value = '';
+      document.getElementById('loginMsg').textContent = '';
+    }
+
+    async function showDashboard() {
+      document.getElementById('loginScreen').classList.add('off');
+      document.getElementById('mainScreen').classList.remove('off');
+      localStorage.setItem('adaKamTasksSession', 'true');
+      await loadTasks();
+    }
+
+    async function loadTasks() {
+      var { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(500);
+      if (error) { toast(error.message); return; }
+      _allTasks = data || [];
+      applyFilters();
+    }
+
+    function applyFilters() {
+      var source = _allTasks;
+      if (_statusFilter) source = source.filter(function(t) { return t.status === _statusFilter; });
+      if (_filteredTasks !== null) source = _filteredTasks;
+      updateStats(source);
+      renderTasks(source);
+    }
+
+    function updateStats(source) {
+      document.getElementById('statTotal').textContent = source.length;
+      document.getElementById('statPending').textContent = source.filter(function(t) { return t.status === 'pending'; }).length;
+      document.getElementById('statApproved').textContent = source.filter(function(t) { return t.status === 'approved'; }).length;
+      document.getElementById('statRejected').textContent = source.filter(function(t) { return t.status === 'rejected'; }).length;
+    }
+
+    function renderTasks(source, page) {
+      var container = document.getElementById('tabContent');
+      if (source.length === 0) { container.innerHTML = '<div class="empty-state">no tasks found</div>'; return; }
+      if (page) _page = page; else _page = 1;
+      var p = paginate(source, _page);
+      var html = '<div class="table-wrap"><table class="data-table"><thead><tr><th>User</th><th>Task</th><th>App User ID</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+      p.items.forEach(function(t) {
+        var uid = t.user_id ? t.user_id.substring(0,8) + '...' : '—';
+        var tn = t.task_type === 'gemgala' ? 'Gemgala App' : t.task_type || '—';
+        var d = t.created_at ? new Date(t.created_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        var ac = '';
+        if (t.status === 'pending') ac = '<button class="action-btn btn-approve" onclick="approveTask(\'' + t.id + '\')">Approve</button><button class="action-btn btn-reject" onclick="rejectTask(\'' + t.id + '\')">Reject</button>';
+        html += '<tr><td><div class="user-info"><span class="email">' + escapeHtml(uid) + '</span></div></td><td>' + escapeHtml(tn) + (t.image_url ? ' <button class="view-btn" onclick="openModal(\'' + t.id + '\')">&#128247; view</button>' : '') + '</td><td>' + escapeHtml(t.app_user_id || '—') + '</td><td>Rs' + (t.reward || 0).toFixed(2) + '</td><td>' + d + '</td><td><span class="badge badge-' + t.status + '">' + t.status + '</span></td><td class="actions-cell">' + ac + '</td></tr>';
+      });
+      html += '</tbody></table></div><div id="pageNav"></div>';
+      container.innerHTML = html;
+      renderPagination('pageNav', _page, p.pages);
+    }
+
+    function renderPagination(cid, p, tp) {
+      var el = document.getElementById(cid); if (!el) return;
+      if (tp <= 1) { el.innerHTML = ''; return; }
+      el.innerHTML = '<div class="pagination"><button class="page-btn" onclick="goPage(' + (p-1) + ')"' + (p<=1?' disabled':'') + '>&#9664;</button><span class="page-info">' + p + ' / ' + tp + '</span><button class="page-btn" onclick="goPage(' + (p+1) + ')"' + (p>=tp?' disabled':'') + '>&#9654;</button></div>';
+    }
+
+    function goPage(p) {
+      var src = getSource();
+      if (!src) return;
+      var tp = Math.ceil(src.length / PER_PAGE);
+      if (p < 1 || p > tp) return;
+      renderTasks(src, p);
+    }
+
+    function getSource() {
+      var s = _allTasks;
+      if (_statusFilter) s = s.filter(function(t) { return t.status === _statusFilter;});
+      if (_filteredTasks !== null) s = _filteredTasks;
+      return s;
+    }
+
+    function filterTasks() {
+      var q = document.getElementById('searchInput').value.trim().toLowerCase();
+      _filteredTasks = null;
+      if (q) _filteredTasks = _allTasks.filter(function(t) { return (t.user_id||'').toLowerCase().indexOf(q) !== -1 || (t.app_user_id||'').toLowerCase().indexOf(q) !== -1 || (t.id||'').toLowerCase().indexOf(q) !== -1; });
+      applyFilters();
+    }
+
+    function setStatusFilter(f, btn) {
+      _statusFilter = f;
+      document.querySelectorAll('#statusFilters button').forEach(function(b) { b.classList.remove('active'); });
+      if (btn) btn.classList.add('active');
+      _filteredTasks = null;
+      document.getElementById('searchInput').value = '';
+      applyFilters();
+    }
+
+    function openModal(id) {
+      var task = null;
+      for (var i = 0; i < _allTasks.length; i++) { if (_allTasks[i].id === id) { task = _allTasks[i]; break; } }
+      if (!task) return;
+      document.getElementById('modalImage').src = task.image_url || '';
+      var actions = document.getElementById('modalActions');
+      actions.innerHTML = '';
+      if (task.status === 'pending') {
+        var a = document.createElement('button'); a.className = 'action-btn btn-approve'; a.textContent = 'Approve'; a.onclick = function() { closeModal(); approveTask(task.id); };
+        var r = document.createElement('button'); r.className = 'action-btn btn-reject'; r.textContent = 'Reject'; r.onclick = function() { closeModal(); rejectTask(task.id); };
+        actions.appendChild(a); actions.appendChild(r);
+      }
+      document.getElementById('taskModal').classList.remove('off');
+    }
+
+    function closeModal() { document.getElementById('taskModal').classList.add('off'); }
+
+    async function approveTask(id) {
+      var task = null;
+      for (var i = 0; i < _allTasks.length; i++) { if (_allTasks[i].id === id) { task = _allTasks[i]; break; } }
+      if (!task) { toast('task not found'); return; }
+      var { data: ud } = await supabase.from('users').select('balance, gross_earned').eq('id', task.user_id).maybeSingle();
+      if (ud) { var r = task.reward || 0; await supabase.from('users').update({ balance: (ud.balance||0) + r, gross_earned: (ud.gross_earned||0) + r }).eq('id', task.user_id); }
+      var { error } = await supabase.from('tasks').update({ status: 'approved', reward_paid: true }).eq('id', id);
+      if (error) { toast(error.message); return; }
+      toast('task approved, reward credited');
+      loadTasks();
+    }
+
+    async function rejectTask(id) {
+      var { error } = await supabase.from('tasks').update({ status: 'rejected' }).eq('id', id);
+      if (error) { toast(error.message); return; }
+      toast('task rejected');
+      loadTasks();
+    }
+
+    function escapeHtml(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function toast(m) { var el = document.getElementById('toast'); el.textContent = m; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(function() { el.classList.remove('show'); }, 2500); }
+
+    document.querySelectorAll('#statusFilters button').forEach(function(b) { b.addEventListener('click', function() { setStatusFilter(this.getAttribute('data-filter'), this); }); });
+
+    /* auto-login if session exists */
+    (async function() {
+      try {
+        if (localStorage.getItem('adaKamTasksSession') === 'true') {
+          var { data: { session } } = await supabase.auth.getSession();
+          if (session && session.user && session.user.email === ADMIN_EMAIL) { _signedIn = true; showDashboard(); }
+        }
+      } catch(e) {}
+    })();
+  </script>
+</body>
+</html>
