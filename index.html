@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ada Kam — Tasks Manager</title>
+  <link rel="icon" type="image/png" href="../../ada-kam-browser.png">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#0f0f12;--bg2:#1a1a20;--bg3:#24242d;--border:#2e2e3a;--text:#e4e4ec;--text2:#9898a8;--accent:#7c5bfa;--green:#2ecc71;--green-bg:rgba(46,204,113,0.12);--red:#e74c3c;--red-bg:rgba(231,76,60,0.12);--yellow:#f39c12;--yellow-bg:rgba(243,156,18,0.12);--radius:10px}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    .off{display:none!important}
+    /* LOGIN */
+    #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+    .login-box{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:40px 32px;max-width:380px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+    .login-box img{width:64px;height:64px;object-fit:contain;margin-bottom:16px;border-radius:12px}
+    .login-box h2{font-size:22px;font-weight:700;margin-bottom:24px;color:var(--accent)}
+    .login-box input{width:100%;padding:14px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;margin-bottom:12px;outline:none}
+    .login-box input:focus{border-color:var(--accent)}
+    .login-box button{width:100%;padding:14px;background:var(--accent);border:none;border-radius:var(--radius);color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px}
+    .login-box button:hover{background:#6a48e6}
+    .login-msg{font-size:13px;color:var(--red);min-height:20px;margin-bottom:8px}
+    .login-hint{font-size:12px;color:var(--text2);margin-top:16px}
+    /* HEADER */
+    .header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+    .header h1{font-size:17px;color:var(--accent)}
+    .header button{padding:6px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+    .header button:hover{background:var(--red);border-color:var(--red);color:#fff}
+    /* STATS */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 14px}
+    .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center}
+    .stat-card .num{font-size:18px;font-weight:800}
+    .stat-card .lbl{font-size:10px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .stat-total .num{color:var(--accent)}
+    .stat-pending .num{color:var(--yellow)}
+    .stat-approved .num{color:var(--green)}
+    .stat-rejected .num{color:var(--red)}
+    /* FILTERS */
+    .status-filters{display:flex;gap:5px;padding:0 14px;margin-bottom:10px;flex-wrap:wrap}
+    .status-filters button{padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--text2);font-size:11px;cursor:pointer;font-weight:600;transition:all .2s}
+    .status-filters button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .status-filters button:hover:not(.active){border-color:var(--accent);color:var(--text)}
+    /* SEARCH */
+    .search-bar{display:flex;gap:6px;padding:0 14px;margin-bottom:10px}
+    .search-bar input{flex:1;min-width:0;padding:9px 12px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:13px;outline:none}
+    .search-bar input:focus{border-color:var(--accent)}
+    .search-bar button{padding:9px 16px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+    .search-bar button:hover{background:#6a48e6}
+    /* CONTENT */
+    .content{padding:0 14px 20px}
+    /* CARDS */
+    .task-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+    .task-card:last-child{margin-bottom:0}
+    .task-card-top{display:flex;justify-content:space-between;align-items:flex-start}
+    .task-card-user{font-size:12px;color:var(--text2)}
+    .task-card-user strong{color:var(--text);font-weight:600}
+    .task-card-type{font-size:13px;font-weight:600;color:var(--accent)}
+    .task-card-middle{display:flex;align-items:center;justify-content:space-between}
+    .task-card-amount{font-size:14px;font-weight:700;color:var(--text)}
+    .task-card-actions{display:flex;gap:6px}
+    .task-card-actions button{padding:6px 14px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+    .task-card-actions .btn-approve{background:var(--green);color:#fff}
+    .task-card-actions .btn-reject{background:var(--red);color:#fff}
+    .task-card-actions .btn-view{background:var(--accent);color:#fff;opacity:.85}
+    .task-card-actions .btn-view:hover{opacity:1}
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;text-transform:capitalize}
+    .badge-pending{background:var(--yellow-bg);color:var(--yellow)}
+    .badge-approved{background:var(--green-bg);color:var(--green)}
+    .badge-rejected{background:var(--red-bg);color:var(--red)}
+    .empty-state{text-align:center;padding:50px 20px;color:var(--text2);font-size:14px}
+    .pagination{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 0 4px}
+    .page-btn{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 12px;font-size:13px;cursor:pointer}
+    .page-btn:hover:not(:disabled){background:var(--accent);border-color:var(--accent)}
+    .page-btn:disabled{opacity:.4;cursor:default}
+    .page-info{font-size:12px;color:var(--text2);font-weight:600}
+    /* FULLSCREEN MODAL */
+    .modal{position:fixed;inset:0;background:#000;z-index:1000;display:flex;flex-direction:column}
+    .modal.off{display:none!important}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(0,0,0,.85);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
+    .modal-header h3{font-size:16px;color:#fff;font-weight:600}
+    .modal-header button{background:rgba(255,255,255,.1);border:none;color:#fff;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .modal-header button:hover{background:rgba(255,255,255,.2)}
+    .modal-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    .modal-image-wrap{background:#111;display:flex;align-items:center;justify-content:center;padding:20px;min-height:160px}
+    .modal-image-wrap img{width:100%;height:auto;max-height:50vh;object-fit:contain;display:block}
+    .modal-noimg{font-size:14px;color:#555;text-align:center}
+    .modal-body{padding:16px}
+    .modal-detail-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+    .modal-detail-row:last-child{border-bottom:none}
+    .modal-detail-label{font-size:13px;color:#9898a8;flex-shrink:0;margin-right:12px}
+    .modal-detail-value{font-size:13px;font-weight:600;color:#fff;text-align:right;word-break:break-all}
+    .modal-actions{padding:12px 16px 20px;display:flex;gap:10px;background:rgba(0,0,0,.85);border-top:1px solid rgba(255,255,255,.08);flex-shrink:0}
+    .modal-actions button{flex:1;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer}
+    .modal-actions .btn-approve{background:var(--green);color:#fff}
+    .modal-actions .btn-reject{background:var(--red);color:#fff}
+    /* IMAGE VIEWER */
+    .viewer{position:fixed;inset:0;background:#000;z-index:3000;display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-user-select:none;user-select:none}
+    .viewer.off{display:none!important}
+    .viewer-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;line-height:1}
+    .viewer-close:hover{background:rgba(255,255,255,.3)}
+    .viewer-stage{display:flex;align-items:center;justify-content:center;width:100%;height:100%;overflow:hidden}
+    .viewer-stage img{display:block;max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;will-change:transform}
+    .viewer-zoom-hint{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.4);font-size:12px;pointer-events:none;transition:opacity .5s}
+    /* TOAST */
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:12px 24px;border-radius:var(--radius);font-size:14px;opacity:0;transition:all .3s;z-index:2000;pointer-events:none;text-align:center;max-width:90vw}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    @media(min-width:768px){
+      .stats{padding:16px 24px;gap:12px}
+      .stat-card{padding:14px}
+      .stat-card .num{font-size:22px}
+      .stat-card .lbl{font-size:11px}
+      .content,.search-bar,.status-filters{padding-left:24px;padding-right:24px}
+      .header{padding:14px 24px}
+      .header h1{font-size:18px}
+      .task-card{padding:16px}
+      .modal-image-wrap img{max-height:60vh}
+      .modal-body{padding:20px 24px}
+      .modal-detail-row{padding:12px 0}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginScreen">
+    <div class="login-box">
+      <img src="../../Ada-Kam.png" alt="Ada Kam">
+      <h2>Tasks Manager</h2>
+      <input type="email" id="adminEmail" placeholder="Email" value="admin@adakam.com" readonly>
+      <input type="password" id="adminPass" placeholder="Password" onkeydown="if(event.key==='Enter')adminLogin()">
+      <p id="loginMsg" class="login-msg"></p>
+      <button onclick="adminLogin()">Sign In</button>
+      <p class="login-hint">Use admin@adakam.com</p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="mainScreen" class="off">
+    <div class="header">
+      <h1>Tasks Manager</h1>
+      <button onclick="adminLogout()">Logout</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card stat-total"><div class="num" id="statTotal">0</div><div class="lbl">Total</div></div>
+      <div class="stat-card stat-pending"><div class="num" id="statPending">0</div><div class="lbl">Pending</div></div>
+      <div class="stat-card stat-approved"><div class="num" id="statApproved">0</div><div class="lbl">Approved</div></div>
+      <div class="stat-card stat-rejected"><div class="num" id="statRejected">0</div><div class="lbl">Rejected</div></div>
+    </div>
+
+    <div class="status-filters" id="statusFilters">
+      <button class="active" data-filter="">All</button>
+      <button data-filter="pending">Pending</button>
+      <button data-filter="approved">Approved</button>
+      <button data-filter="rejected">Rejected</button>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="search by user ID or app user ID..." oninput="filterTasks()">
+      <button onclick="filterTasks()">Search</button>
+    </div>
+
+    <div class="content" id="tabContent">
+      <div class="empty-state">loading tasks...</div>
+    </div>
+  </div>
+
+  <!-- FULLSCREEN TASK MODAL -->
+  <div id="taskModal" class="modal off">
+    <div class="modal-header">
+      <h3 id="modalTitle">Task Details</h3>
+      <button onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-scroll" onclick="if(event.target===this)closeModal()">
+      <div class="modal-image-wrap">
+        <img id="modalImage" src="" alt="screenshot">
+      </div>
+      <div class="modal-body" id="modalDetails"></div>
+    </div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+
+  <!-- IMAGE VIEWER (full screen zoom/pan) -->
+  <div id="imageViewer" class="viewer off" onclick="if(event.target===this)closeViewer()">
+    <button class="viewer-close" onclick="closeViewer()">&times;</button>
+    <div class="viewer-stage" id="viewerStage">
+      <img id="viewerImg" src="" alt="zoom">
+    </div>
+    <div class="viewer-zoom-hint" id="viewerHint">pinch to zoom, drag to pan</div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var SUPABASE_URL = 'https://pxsdcnsuqgarknbaczsd.supabase.co';
+    var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4c2RjbnN1cWdhcmtuYmFjenNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MTM0MjEsImV4cCI6MjA5NTE4OTQyMX0.oEDW_8Rgahqcp775C-ZtXNqu9rx26Bc1SYALXj7JXYM';
+    var ADMIN_EMAIL = 'admin@adakam.com';
+    var supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    var _allTasks = [];
+    var _taskMap = {};
+    var _filteredTasks = null;
+    var _statusFilter = '';
+    var _page = 1;
+    var PER_PAGE = 10;
+
+    function paginate(arr, p) { var s = (p - 1) * PER_PAGE; return { items: arr.slice(s, s + PER_PAGE), total: arr.length, pages: Math.ceil(arr.length / PER_PAGE) }; }
+
+    async function adminLogin() {
+      var email = document.getElementById('adminEmail').value.trim();
+      var pass = document.getElementById('adminPass').value;
+      var msg = document.getElementById('loginMsg');
+      var btn = document.querySelector('#loginScreen button');
+      if (!pass || pass.length < 4) { msg.textContent = 'enter password'; return; }
+      msg.textContent = ''; btn.disabled = true; btn.textContent = 'signing in...';
+      var { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user && session.user.email === email) { btn.disabled = false; showDashboard(); return; }
+      var { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (error) { msg.textContent = error.message; btn.textContent = 'Sign In'; btn.disabled = false; return; }
+      btn.disabled = false;
+      showDashboard();
+    }
+
+    function adminLogout() {
+      supabase.auth.signOut();
+      localStorage.removeItem('adaKamTasksSession');
+      document.getElementById('mainScreen').classList.add('off');
+      document.getElementById('loginScreen').classList.remove('off');
+      document.getElementById('adminPass').value = '';
+      document.getElementById('loginMsg').textContent = '';
+    }
+
+    async function showDashboard() {
+      document.getElementById('loginScreen').classList.add('off');
+      document.getElementById('mainScreen').classList.remove('off');
+      localStorage.setItem('adaKamTasksSession', 'true');
+      await loadTasks();
+    }
+
+    async function loadTasks() {
+      var { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(500);
+      if (error) { toast(error.message); return; }
+      _allTasks = data || [];
+      _taskMap = {};
+      _allTasks.forEach(function(t) { _taskMap[t.id] = t; });
+      applyFilters();
+    }
+
+    function getFilteredSource() {
+      var s = _allTasks;
+      if (_statusFilter) s = s.filter(function(t) { return t.status === _statusFilter; });
+      if (_filteredTasks !== null) s = _filteredTasks;
+      return s;
+    }
+
+    function applyFilters() {
+      var source = getFilteredSource();
+      document.getElementById('statTotal').textContent = source.length;
+      document.getElementById('statPending').textContent = source.filter(function(t) { return t.status === 'pending'; }).length;
+      document.getElementById('statApproved').textContent = source.filter(function(t) { return t.status === 'approved'; }).length;
+      document.getElementById('statRejected').textContent = source.filter(function(t) { return t.status === 'rejected'; }).length;
+      renderCards(source);
+    }
+
+    function renderCards(source, page) {
+      var container = document.getElementById('tabContent');
+      if (source.length === 0) { container.innerHTML = '<div class="empty-state">no tasks found</div>'; return; }
+      if (page) _page = page; else _page = 1;
+      var p = paginate(source, _page);
+      var html = '';
+      p.items.forEach(function(t, idx) {
+        var tn = t.task_type === 'gemgala' ? 'Gemgala App' : t.task_type || 'Task';
+        var shortId = t.user_id ? t.user_id.substring(0,8) + '..' : '—';
+        var apId = t.app_user_id ? t.app_user_id.substring(0,12) : '—';
+        var statusBadge = '<span class="badge badge-' + t.status + '">' + t.status + '</span>';
+        var actionsHtml = '';
+        if (t.status === 'pending') {
+          actionsHtml = '<button class="btn-approve" data-id="' + t.id + '">Approve</button><button class="btn-reject" data-id="' + t.id + '">Reject</button>';
+        } else {
+          actionsHtml = statusBadge;
+        }
+        html +=
+          '<div class="task-card" data-id="' + t.id + '">' +
+            '<div class="task-card-top">' +
+              '<div><div class="task-card-type">' + escapeHtml(tn) + '</div><div class="task-card-user">User: <strong>' + escapeHtml(shortId) + '</strong></div></div>' +
+              '<div style="text-align:right"><div class="task-card-amount">Rs' + (t.reward || 0).toFixed(2) + '</div>' +
+              (t.app_user_id ? '<div class="task-card-user">App ID: ' + escapeHtml(apId) + '</div>' : '') + '</div>' +
+            '</div>' +
+            '<div class="task-card-middle">' +
+              '<div class="task-card-user">' + new Date(t.created_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) + '</div>' +
+              '<div class="task-card-actions">' +
+                actionsHtml +
+                '<button class="btn-view" data-id="' + t.id + '">View</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      });
+      html += '<div id="pageNav"></div>';
+      container.innerHTML = html;
+      var el = document.getElementById('pageNav');
+      if (el && p.pages > 1) el.innerHTML = '<div class="pagination"><button class="page-btn" onclick="goPage(' + (_page-1) + ')"' + (_page<=1?' disabled':'') + '>&#9664;</button><span class="page-info">' + _page + ' / ' + p.pages + '</span><button class="page-btn" onclick="goPage(' + (_page+1) + ')"' + (_page>=p.pages?' disabled':'') + '>&#9654;</button></div>';
+    }
+
+    function goPage(p) {
+      var s = getFilteredSource(); if (!s) return;
+      if (p < 1 || p > Math.ceil(s.length / PER_PAGE)) return;
+      renderCards(s, p);
+    }
+
+    function filterTasks() {
+      var q = document.getElementById('searchInput').value.trim().toLowerCase();
+      _filteredTasks = null;
+      if (q) _filteredTasks = _allTasks.filter(function(t) {
+        return (t.user_id||'').toLowerCase().indexOf(q) !== -1 || (t.app_user_id||'').toLowerCase().indexOf(q) !== -1;
+      });
+      applyFilters();
+    }
+
+    function setStatusFilter(f, btn) {
+      _statusFilter = f;
+      document.querySelectorAll('#statusFilters button').forEach(function(b) { b.classList.remove('active'); });
+      if (btn) btn.classList.add('active');
+      _filteredTasks = null; document.getElementById('searchInput').value = ''; applyFilters();
+    }
+
+    function getTaskById(id) {
+      return _taskMap[id] || null;
+    }
+
+    function openModal(id) {
+      var task = _taskMap[id];
+      if (!task) { console.warn('task not found in map, id:', id); toast('task not found'); return; }
+      document.getElementById('modalTitle').textContent = (task.task_type === 'gemgala' ? 'Gemgala App' : task.task_type || 'Task') + ' — Details';
+      var imgEl = document.getElementById('modalImage');
+      var wrapEl = imgEl.parentNode;
+      if (task.image_url) {
+        var oldni = wrapEl.querySelector('.modal-noimg'); if (oldni) oldni.remove();
+        imgEl.onerror = function() { imgEl.style.display = 'none'; if (!wrapEl.querySelector('.modal-noimg')) { var ni = document.createElement('div'); ni.className = 'modal-noimg'; ni.textContent = 'Image failed to load'; wrapEl.appendChild(ni); } };
+        imgEl.src = task.image_url;
+        imgEl.style.display = 'block';
+      } else {
+        imgEl.src = ''; imgEl.style.display = 'none';
+        if (!wrapEl.querySelector('.modal-noimg')) { var ni = document.createElement('div'); ni.className = 'modal-noimg'; ni.textContent = 'No screenshot uploaded'; wrapEl.appendChild(ni); }
+      }
+      var tn = task.task_type === 'gemgala' ? 'Gemgala App' : task.task_type || '—';
+      var d = task.created_at ? new Date(task.created_at).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+      document.getElementById('modalDetails').innerHTML =
+        '<div class="modal-detail-row"><span class="modal-detail-label">User ID</span><span class="modal-detail-value">' + escapeHtml(task.user_id || '—') + '</span></div>' +
+        '<div class="modal-detail-row"><span class="modal-detail-label">Task</span><span class="modal-detail-value">' + escapeHtml(tn) + '</span></div>' +
+        '<div class="modal-detail-row"><span class="modal-detail-label">App User ID</span><span class="modal-detail-value">' + escapeHtml(task.app_user_id || '—') + '</span></div>' +
+        '<div class="modal-detail-row"><span class="modal-detail-label">Reward</span><span class="modal-detail-value">Rs' + (task.reward || 0).toFixed(2) + '</span></div>' +
+        '<div class="modal-detail-row"><span class="modal-detail-label">Status</span><span class="modal-detail-value"><span class="badge badge-' + task.status + '">' + task.status + '</span></span></div>' +
+        '<div class="modal-detail-row"><span class="modal-detail-label">Submitted</span><span class="modal-detail-value">' + d + '</span></div>' +
+        (task.reviewed_at ? '<div class="modal-detail-row"><span class="modal-detail-label">Reviewed</span><span class="modal-detail-value">' + new Date(task.reviewed_at).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) + '</span></div>' : '');
+      var actions = document.getElementById('modalActions');
+      actions.innerHTML = '';
+      if (task.status === 'pending') {
+        var a = document.createElement('button'); a.className = 'btn-approve'; a.textContent = 'Approve'; a.onclick = function() { closeModal(); approveTask(task.id); };
+        var r = document.createElement('button'); r.className = 'btn-reject'; r.textContent = 'Reject'; r.onclick = function() { closeModal(); rejectTask(task.id); };
+        actions.appendChild(a); actions.appendChild(r);
+      }
+      document.getElementById('taskModal').classList.remove('off');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() { document.getElementById('taskModal').classList.add('off'); document.body.style.overflow = ''; }
+
+    async function approveTask(id) {
+      var task = _taskMap[id];
+      if (!task) { toast('task not found'); return; }
+      var { data: ud } = await supabase.from('users').select('balance, gross_earned').eq('id', task.user_id).maybeSingle();
+      if (ud) { var r = task.reward || 0; await supabase.from('users').update({ balance: (ud.balance||0) + r, gross_earned: (ud.gross_earned||0) + r }).eq('id', task.user_id); }
+      var { error } = await supabase.from('tasks').update({ status: 'approved', reward_paid: true }).eq('id', id);
+      if (error) { toast(error.message); return; }
+      toast('task approved, reward credited');
+      loadTasks();
+    }
+
+    async function rejectTask(id) {
+      var { error } = await supabase.from('tasks').update({ status: 'rejected' }).eq('id', id);
+      if (error) { toast(error.message); return; }
+      toast('task rejected');
+      loadTasks();
+    }
+
+    function escapeHtml(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function toast(m) { var el = document.getElementById('toast'); el.textContent = m; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(function() { el.classList.remove('show'); }, 2500); }
+
+    /* ─── IMAGE VIEWER (zoom/pan) ─── */
+    var _v = { scale: 1, x: 0, y: 0, img: null, stage: null, dragging: false, startX: 0, startY: 0, startScale: 1, startX2: 0, startY2: 0, dist: 0, mx0: 0, my0: 0, touchMode: false };
+
+    function openViewer(url) {
+      _v.scale = 1; _v.x = 0; _v.y = 0; _v.dragging = false;
+      _v.img = document.getElementById('viewerImg');
+      _v.stage = document.getElementById('viewerStage');
+      _v.img.src = url;
+      _v.img.onload = function() { applyViewerTrans(); };
+      document.getElementById('imageViewer').classList.remove('off');
+      document.body.style.overflow = 'hidden';
+      var hint = document.getElementById('viewerHint');
+      hint.style.opacity = '1';
+      clearTimeout(hint._t);
+      hint._t = setTimeout(function() { hint.style.opacity = '0'; }, 3000);
+    }
+
+    function closeViewer() {
+      document.getElementById('imageViewer').classList.add('off');
+      document.body.style.overflow = '';
+      _v.img = null; _v.stage = null;
+    }
+
+    function applyViewerTrans() {
+      if (!_v.img) return;
+      _v.img.style.transform = 'scale(' + _v.scale + ') translate(' + (_v.x / _v.scale) + 'px, ' + (_v.y / _v.scale) + 'px)';
+    }
+
+    function dist(a, b) { return Math.sqrt((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y)); }
+
+    /* touch events */
+    document.getElementById('imageViewer').addEventListener('touchstart', function(e) {
+      if (e.target.closest('.viewer-close')) return;
+      var t = e.touches; _v.touchMode = true;
+      if (t.length === 1) { _v.dragging = true; _v.startX = t[0].clientX; _v.startY = t[0].clientY; }
+      else if (t.length === 2) {
+        _v.dragging = false; _v.startScale = _v.scale;
+        _v.dist = dist({x:t[0].clientX,y:t[0].clientY},{x:t[1].clientX,y:t[1].clientY});
+        _v.mx0 = (t[0].clientX + t[1].clientX) / 2;
+        _v.my0 = (t[0].clientY + t[1].clientY) / 2;
+        _v.startX = _v.x; _v.startY = _v.y;
+      }
+    }, { passive: true });
+
+    document.getElementById('imageViewer').addEventListener('touchmove', function(e) {
+      if (e.target.closest('.viewer-close')) return;
+      var t = e.touches;
+      if (t.length === 1 && _v.dragging) {
+        _v.x += t[0].clientX - _v.startX; _v.y += t[0].clientY - _v.startY;
+        _v.startX = t[0].clientX; _v.startY = t[0].clientY;
+        applyViewerTrans();
+      } else if (t.length === 2) {
+        var nd = dist({x:t[0].clientX,y:t[0].clientY},{x:t[1].clientX,y:t[1].clientY});
+        _v.scale = Math.max(0.5, Math.min(10, _v.startScale * (nd / _v.dist)));
+        var mx = (t[0].clientX + t[1].clientX) / 2;
+        var my = (t[0].clientY + t[1].clientY) / 2;
+        _v.x = _v.startX + (mx - _v.mx0);
+        _v.y = _v.startY + (my - _v.my0);
+        applyViewerTrans();
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    document.getElementById('imageViewer').addEventListener('touchend', function() { _v.dragging = false; }, { passive: true });
+
+    /* mouse events */
+    document.getElementById('imageViewer').addEventListener('mousedown', function(e) {
+      if (e.target.closest('.viewer-close')) return;
+      _v.touchMode = false; _v.dragging = true;
+      _v.startX = e.clientX; _v.startY = e.clientY;
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!_v.dragging || _v.touchMode) return;
+      _v.x += e.clientX - _v.startX; _v.y += e.clientY - _v.startY;
+      _v.startX = e.clientX; _v.startY = e.clientY;
+      applyViewerTrans();
+    });
+
+    document.addEventListener('mouseup', function() { _v.dragging = false; });
+
+    document.getElementById('imageViewer').addEventListener('wheel', function(e) {
+      if (e.target.closest('.viewer-close')) return;
+      e.preventDefault();
+      var ns = Math.max(0.5, Math.min(10, _v.scale * (1 + (e.deltaY > 0 ? -0.1 : 0.1))));
+      var r = _v.img ? _v.img.getBoundingClientRect() : null;
+      if (r && r.width > 0) {
+        var px = (e.clientX - r.left) / r.width;
+        var py = (e.clientY - r.top) / r.height;
+        if (isFinite(px) && isFinite(py)) {
+          _v.x = px * r.width * (1 - ns / _v.scale) + _v.x * (ns / _v.scale);
+          _v.y = py * r.height * (1 - ns / _v.scale) + _v.y * (ns / _v.scale);
+        }
+      }
+      _v.scale = ns;
+      applyViewerTrans();
+    }, { passive: false });
+
+    document.getElementById('imageViewer').addEventListener('dblclick', function(e) {
+      if (e.target.closest('.viewer-close')) return;
+      if (_v.scale > 1.5) { _v.scale = 1; _v.x = 0; _v.y = 0; }
+      else { _v.scale = 3;
+        var r = _v.img ? _v.img.getBoundingClientRect() : null;
+        if (r && r.width > 0) { _v.x = (e.clientX - r.left - r.width/2) * (1 - 3); _v.y = (e.clientY - r.top - r.height/2) * (1 - 3); }
+      }
+      applyViewerTrans();
+    });
+
+    /* click modal image to open viewer */
+    document.getElementById('modalImage').addEventListener('click', function() { if (this.src && this.style.display !== 'none') openViewer(this.src); });
+
+    /* click delegation for task cards */
+    document.getElementById('tabContent').addEventListener('click', function(e) {
+      var target = e.target;
+      var id = target.getAttribute('data-id');
+      if (!id) return;
+      if (target.classList.contains('btn-view')) { openModal(id); }
+      else if (target.classList.contains('btn-approve')) { approveTask(id); }
+      else if (target.classList.contains('btn-reject')) { rejectTask(id); }
+    });
+
+    document.querySelectorAll('#statusFilters button').forEach(function(b) { b.addEventListener('click', function() { setStatusFilter(this.getAttribute('data-filter'), this); }); });
+
+    (async function() {
+      try {
+        if (localStorage.getItem('adaKamTasksSession') === 'true') {
+          var { data: { session } } = await supabase.auth.getSession();
+          if (session && session.user && session.user.email === ADMIN_EMAIL) showDashboard();
+        }
+      } catch(e) {}
+    })();
+  </script>
+</body>
+</html>
