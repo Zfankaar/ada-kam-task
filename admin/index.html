@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ada Kam — Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="../ada-kam-browser.png">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginScreen">
+    <div class="login-box">
+      <img src="../Ada-Kam.png" alt="Ada Kam" class="login-logo">
+      <h2>Admin Panel</h2>
+      <input type="email" id="adminEmail" placeholder="Email" value="admin@adakam.com" readonly>
+      <input type="password" id="adminPass" placeholder="Password" onkeydown="if(event.key==='Enter')adminLogin()">
+      <p id="loginMsg" class="login-msg"></p>
+      <button onclick="adminLogin()">Sign In</button>
+      <p class="login-hint">Default: admin123</p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="mainScreen" class="off">
+    <header class="top-bar">
+      <div class="top-left">
+        <img src="../Ada-Kam.png" alt="Ada Kam" class="top-logo">
+        <span>Admin Panel</span>
+      </div>
+      <div class="top-right">
+        <button onclick="openChangePass()" class="top-btn">Change Password</button>
+        <button onclick="refreshAll()" class="top-btn" style="margin-left:6px;">Refresh</button>
+        <button onclick="adminLogout()" class="top-btn" style="margin-left:6px;">Logout</button>
+      </div>
+    </header>
+
+    <!-- STATS CARDS -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-icon stat-users">&#128101;</div>
+        <div class="stat-info">
+          <span class="stat-num" id="statUsers">0</span>
+          <span class="stat-label">Users</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-withdrawals">&#128176;</div>
+        <div class="stat-info">
+          <span class="stat-num" id="statPendingWithdrawals">0</span>
+          <span class="stat-label">Pending Withdrawals</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-tasks">&#9989;</div>
+        <div class="stat-info">
+          <span class="stat-num" id="statCompletedTasks">0</span>
+          <span class="stat-label">Completed Tasks</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-pending-tasks">&#128203;</div>
+        <div class="stat-info">
+          <span class="stat-num" id="statPendingTasks">0</span>
+          <span class="stat-label">Pending Tasks</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('withdrawals', this)">Withdrawals</button>
+      <button class="tab" onclick="switchTab('tasks', this)">Tasks</button>
+      <button class="tab" onclick="switchTab('users', this)">Users</button>
+    </div>
+
+    <!-- TAB CONTENT -->
+    <div id="tabContent"></div>
+  </div>
+
+  <!-- CHANGE PASSWORD MODAL -->
+  <div id="changePassModal" class="modal off" onclick="if(event.target===this)closeChangePass()">
+    <div class="modal-content" style="max-width:400px;" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeChangePass()">&times;</button>
+      <div style="padding:24px;">
+        <h3 style="margin-bottom:16px;font-size:18px;">Change Password</h3>
+        <input type="password" id="newAdminPass1" placeholder="New password (min 6 chars)" style="width:100%;padding:12px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:14px;outline:none;margin-bottom:10px;">
+        <input type="password" id="newAdminPass2" placeholder="Confirm new password" style="width:100%;padding:12px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:14px;outline:none;margin-bottom:10px;">
+        <p id="changePassMsg" style="font-size:13px;color:#e74c3c;min-height:20px;margin-bottom:8px;"></p>
+        <button onclick="saveNewPass()" style="width:100%;padding:12px;background:#7c5bfa;border:none;border-radius:8px;color:#fff;font-weight:600;font-size:14px;cursor:pointer;">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASK MODAL -->
+  <div id="taskModal" class="modal off" onclick="closeTaskModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeTaskModal()">&times;</button>
+      <div class="modal-body">
+        <div class="modal-image-wrap">
+          <img id="modalImage" src="" alt="task screenshot">
+        </div>
+        <div class="modal-details" id="modalDetails"></div>
+      </div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+
+  <!-- EDIT USER MODAL -->
+  <div id="editUserModal" class="modal off" onclick="if(event.target===this)closeEditUser()">
+    <div class="modal-content" style="max-width:420px;" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeEditUser()">&times;</button>
+      <div style="padding:24px;">
+        <h3 style="margin-bottom:16px;font-size:18px;">Edit User</h3>
+        <p style="font-size:13px;color:#9898a8;margin-bottom:14px;" id="editUserLabel"></p>
+        <input type="text" id="editAccType" placeholder="Account type (Easypaisa/JazzCash)" style="width:100%;padding:12px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:14px;outline:none;margin-bottom:10px;">
+        <input type="text" id="editAccName" placeholder="Account name" style="width:100%;padding:12px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:14px;outline:none;margin-bottom:10px;">
+        <input type="text" id="editAccNum" placeholder="Account number" style="width:100%;padding:12px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:14px;outline:none;margin-bottom:10px;">
+        <input type="number" id="editBalance" placeholder="Balance" step="0.01" style="width:100%;padding:12px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:14px;outline:none;margin-bottom:10px;">
+        <input type="number" id="editTotalEarned" placeholder="Total earned" step="0.01" style="width:100%;padding:12px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:14px;outline:none;margin-bottom:10px;">
+        <input type="number" id="editGrossEarned" placeholder="Gross earned" step="0.01" style="width:100%;padding:12px 14px;background:#1a1a20;border:1px solid #2e2e3a;border-radius:8px;color:#e4e4ec;font-size:14px;outline:none;margin-bottom:12px;">
+        <p id="editUserMsg" style="font-size:13px;color:#e74c3c;min-height:20px;margin-bottom:8px;"></p>
+        <button onclick="saveEditUser()" style="width:100%;padding:12px;background:#7c5bfa;border:none;border-radius:8px;color:#fff;font-weight:600;font-size:14px;cursor:pointer;">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRM MODAL -->
+  <div id="deleteUserModal" class="modal off" onclick="if(event.target===this)closeDeleteUser()">
+    <div class="modal-content" style="max-width:380px;" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeDeleteUser()">&times;</button>
+      <div style="padding:24px;text-align:center;">
+        <h3 style="margin-bottom:12px;font-size:18px;color:#e74c3c;">Delete User?</h3>
+        <p style="font-size:14px;color:#9898a8;margin-bottom:6px;" id="deleteUserLabel"></p>
+        <p style="font-size:13px;color:#e74c3c;margin-bottom:16px;">This will remove the user from Auth &amp; database permanently.</p>
+        <p id="deleteUserMsg" style="font-size:13px;color:#e74c3c;min-height:20px;margin-bottom:8px;"></p>
+        <button onclick="confirmDeleteUser()" style="width:100%;padding:12px;background:#e74c3c;border:none;border-radius:8px;color:#fff;font-weight:600;font-size:14px;cursor:pointer;">Delete Forever</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminToast" class="toast"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
